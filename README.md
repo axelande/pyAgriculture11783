@@ -1,2 +1,2 @@
 # pyAgriculture11783
-To read TASKDATA.xml, TLG.xml and TLG.bin files 
+A package to read TASKDATA.xml, TLG.xml and TLG.bin files in Python. The project is under development and feedback is apritiated!

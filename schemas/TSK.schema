@@ -1,0 +1,5 @@
+{"Name": "Task",
+"A":{"Attribute_name":"TaskId", "Use":"r", "Type": "xs:ID", "length": "4 to 14", "comment": "Format:Unique identifier of task Format: (TSK|TSK-)([0–9])+ Records generated on MICS have negative IDs"},
+"B": {"Attribute_name":"TaskDesignator", "Use":"o", "Type": "xs:string", "length": "max. 32", "comment": "Task designator/name"},
+"G": {"Attribute_name":"TaskStatus", "Use":"r", "Type": "xs:NMTOKEN", "length": "1 to 6", "comment": "Status of the task, possible values: 1 = planned 2 = running 3 = paused 4 = completed 5 = template 6 = canceled"}
+}
