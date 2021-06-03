@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="ISO8859-1" ?>
+<TIM A="" D="4">
+    <PTN A="" B="" C="" D="" E="" F="" G="" H="" I="" />
+    <DLV A="0043" B="" C="DET-1" />
+    <DLV A="e120" B="" C="DET-1" />
+    <DLV A="0057" B="" C="DET-1" />
+    <DLV A="0063" B="" C="DET-1" />
+    <DLV A="e10c" B="" C="DET-1" />
+    <DLV A="e10d" B="" C="DET-1" />
+    <DLV A="e207" B="" C="DET-1" />
+    <DLV A="0091" B="" C="DET-1" />
+    <DLV A="0092" B="" C="DET-1" />
+    <DLV A="e501" B="" C="DET-1" />
+    <DLV A="e502" B="" C="DET-1" />
+    <DLV A="e100" B="" C="DET-1" />
+    <DLV A="e110" B="8000" C="DET-1" />
+    <DLV A="e11b" B="720824" C="DET-1" />
+    <DLV A="0079" B="720824" C="DET-1" />
+</TIM>

@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="ISO8859-1" ?>
+<ISO11783_TaskData DataTransferOrigin="2" ManagementSoftwareManufacturer="" TaskControllerManufacturer="Trimble Navigation" TaskControllerVersion="1.0.1" VersionMajor="1" VersionMinor="0">
+    <DVC A="DVC-1" B="FmX" C="" D="" E="5403565220" F="GPS" G="" />
+    <DVC A="DVC-2" B="Combine_YM2000" C="" D="200E000000000000" E="" F="" G="">
+        <DET A="DET-1" B="100" C="1" D="Combine" E="1" F="0">
+            <DOR A="200" />
+            <DOR A="201" />
+            <DOR A="202" />
+            <DOR A="203" />
+            <DOR A="204" />
+            <DOR A="205" />
+            <DOR A="206" />
+            <DOR A="207" />
+            <DOR A="208" />
+            <DOR A="209" />
+            <DOR A="210" />
+            <DOR A="211" />
+            <DOR A="212" />
+            <DOR A="213" />
+            <DOR A="214" />
+            <DOR A="215" />
+            <DOR A="216" />
+            <DOR A="217" />
+            <DOR A="218" />
+            <DOR A="219" />
+            <DOR A="220" />
+            <DOR A="221" />
+            <DOR A="222" />
+            <DOR A="223" />
+            <DOR A="224" />
+            <DOR A="225" />
+            <DOR A="226" />
+            <DOR A="227" />
+            <DOR A="228" />
+            <DOR A="229" />
+            <DOR A="230" />
+            <DOR A="231" />
+            <DOR A="232" />
+            <DOR A="233" />
+            <DOR A="234" />
+            <DOR A="235" />
+            <DOR A="236" />
+            <DOR A="237" />
+            <DOR A="238" />
+            <DOR A="239" />
+            <DOR A="240" />
+            <DOR A="241" />
+            <DOR A="242" />
+            <DOR A="243" />
+            <DOR A="244" />
+            <DOR A="245" />
+            <DOR A="246" />
+        </DET>
+        <DPD A="200" B="e100" C="1" D="11" E="Crop temperature" F="403" />
+        <DPD A="201" B="e101" C="1" D="11" E="Yield sensor" F="402" />
+        <DPD A="202" B="e102" C="1" D="11" E="Engine speed" F="415" />
+        <DPD A="203" B="e103" C="1" D="11" E="Engine temperature" F="403" />
+        <DPD A="204" B="e104" C="1" D="11" E="Fuel usage" F="408" />
+        <DPD A="205" B="e105" C="1" D="11" E="Engine load" F="400" />
+        <DPD A="206" B="e108" C="1" D="11" E="Concave clearance" F="418" />
+        <DPD A="207" B="e109" C="1" D="11" E="Fan speed" F="415" />
+        <DPD A="208" B="e10a" C="1" D="11" E="Sieve setting" F="418" />
+        <DPD A="209" B="e10b" C="1" D="11" E="Chaffer setting" F="418" />
+        <DPD A="210" B="e10c" C="1" D="11" E="Delta grain" F="404" />
+        <DPD A="211" B="e10d" C="1" D="11" E="Delta area" F="405" />
+        <DPD A="212" B="e10e" C="1" D="11" E="Operating status" F="406" />
+        <DPD A="213" B="e10f" C="1" D="11" E="Calibration constant" F="407" />
+        <DPD A="214" B="e110" C="1" D="11" E="Yield delay" F="409" />
+        <DPD A="215" B="e111" C="1" D="11" E="Lead time" F="409" />
+        <DPD A="216" B="e112" C="1" D="11" E="Lag time" F="409" />
+        <DPD A="217" B="e113" C="1" D="11" E="Logging off delay" F="409" />
+        <DPD A="218" B="e114" C="3" D="16" E="Task total dry grain" F="416" />
+        <DPD A="219" B="e116" C="1" D="11" E="Elevator RPM" F="415" />
+        <DPD A="220" B="e117" C="1" D="11" E="Wheel speed" F="410" />
+        <DPD A="221" B="e118" C="1" D="11" E="GPS speed" F="410" />
+        <DPD A="222" B="e119" C="1" D="11" E="Separator hours" F="411" />
+        <DPD A="223" B="e11a" C="1" D="11" E="Yield Sensor Zero Point" F="402" />
+        <DPD A="224" B="e11b" C="1" D="11" E="Test weight" F="412" />
+        <DPD A="225" B="e11c" C="3" D="16" E="Task average yield" F="413" />
+        <DPD A="226" B="e11d" C="3" D="16" E="Task average moisture" F="400" />
+        <DPD A="227" B="e11e" C="3" D="16" E="Task average capacity" F="414" />
+        <DPD A="228" B="e11f" C="3" D="16" E="Grain load average moisture" F="400" />
+        <DPD A="229" B="e120" C="1" D="11" E="Dry yield" F="413" />
+        <DPD A="230" B="e121" C="1" D="11" E="Hydraulic oil temperature" F="403" />
+        <DPD A="231" B="e200" C="1" D="11" E="Tachometer hours" F="411" />
+        <DPD A="232" B="dfff" C="3" D="31" E="DefaultDDI" F="406" />
+        <DPD A="233" B="0043" C="1" D="11" E="Header width" F="417" />
+        <DPD A="234" B="0087" C="1" D="11" E="Header Y offset" F="400" />
+        <DPD A="235" B="0074" C="3" D="16" E="Task total area" F="419" />
+        <DPD A="236" B="0054" C="1" D="11" E="Display yield" F="413" />
+        <DPD A="237" B="0057" C="1" D="11" E="Capacity" F="414" />
+        <DPD A="238" B="0063" C="1" D="11" E="Moisture" F="400" />
+        <DPD A="239" B="0077" C="1" D="16" E="Task Effective Time" F="411" />
+        <DPD A="240" B="e207" C="1" D="11" E="In Work" F="406" />
+        <DPD A="241" B="e202" C="1" D="11" E="Engine Oil Pressure" F="420" />
+        <DPD A="242" B="0091" C="1" D="11" E="Roll Angle" F="422" />
+        <DPD A="243" B="0092" C="1" D="11" E="Pitch Angle" F="422" />
+        <DPD A="244" B="e501" C="1" D="11" E="Grain flow" F="421" />
+        <DPD A="245" B="e502" C="1" D="11" E="Elevator speed" F="402" />
+        <DPD A="246" B="0079" C="1" D="11" E="Standard bushel weight" F="412" />
+        <DVP A="400" B="0" C="0.0001" D="2" E="%" />
+        <DVP A="401" B="0" C="1" D="0" E="µm" />
+        <DVP A="402" B="0" C="0.001" D="2" E="Hz" />
+        <DVP A="403" B="17778" C="0.0018" D="2" E="F" />
+        <DVP A="404" B="0" C="2.20462e-06" D="1" E="lb" />
+        <DVP A="405" B="0" C="0.00107639" D="2" E="sq.ft" />
+        <DVP A="406" B="0" C="1" D="1" E="" />
+        <DVP A="407" B="0" C="0.001" D="1" E="" />
+        <DVP A="408" B="0" C="0.00095102" D="2" E="gal/h" />
+        <DVP A="409" B="0" C="0.001" D="1" E="s" />
+        <DVP A="410" B="0" C="2.23694e-05" D="2" E="mph" />
+        <DVP A="411" B="0" C="0.000277778" D="2" E="hr" />
+        <DVP A="412" B="0" C="7.76923e-05" D="1" E="lb/bu" />
+        <DVP A="413" B="0" C="0.000892179" D="2" E="lb/ac" />
+        <DVP A="414" B="0" C="0.00793664" D="2" E="lb/hr" />
+        <DVP A="415" B="0" C="0.06" D="1" E="rpm" />
+        <DVP A="416" B="0" C="0.00220462" D="3" E="lb" />
+        <DVP A="417" B="0" C="0.00328083" D="2" E="ft" />
+        <DVP A="418" B="0" C="3.937e-05" D="2" E="in" />
+        <DVP A="419" B="0" C="0.000247104" D="1" E="ac" />
+        <DVP A="420" B="0" C="0.000145038" D="1" E="psi" />
+        <DVP A="421" B="0" C="0.001" D="2" E="ml/s" />
+        <DVP A="422" B="0" C="0.001" D="1" E="degree" />
+    </DVC>
+    <CTR A="CTR-1" B="test" />
+    <FRM A="FRM-1" B="test" I="CTR-1" />
+    <CTP A="CTP-1" B="Potatis" />
+    <PFD A="PFD-1" C="test3" D="0" F="FRM-1" G="CTP-1" />
+    <TSK A="TSK-1" B="Potatis 2016" E="PFD-1" G="1">
+        <TLG A="TLG00000" C="1" />
+        <TIM A="2016-06-16T08:30:12" B="2016-06-16T08:32:16" D="4">
+            <DLV A="e114" B="5624" C="DET-1" />
+            <DLV A="e11c" B="0" C="DET-1" />
+            <DLV A="e11d" B="10000" C="DET-1" />
+            <DLV A="0074" B="0" C="DET-1" />
+            <DLV A="0077" B="123" C="DET-1" />
+        </TIM>
+        <TLG A="TLG00001" C="1" />
+        <TIM A="2016-06-16T08:32:17" B="2016-06-16T08:40:39" D="4">
+            <DLV A="e114" B="9434" C="DET-1" />
+            <DLV A="e11c" B="0" C="DET-1" />
+            <DLV A="e11d" B="10000" C="DET-1" />
+            <DLV A="0074" B="0" C="DET-1" />
+            <DLV A="0077" B="494" C="DET-1" />
+        </TIM>
+    </TSK>
+    <PFD A="PFD-2" C="test4" D="0" F="FRM-1" G="CTP-1" />
+    <TSK A="TSK-2" B="Potatis 2016" E="PFD-2" G="1">
+        <TLG A="TLG00002" C="1" />
+        <TIM A="2016-06-16T09:59:03" B="2016-06-16T10:04:18" D="4">
+            <DLV A="e114" B="5307" C="DET-1" />
+            <DLV A="e11c" B="358456042" C="DET-1" />
+            <DLV A="e11d" B="10000" C="DET-1" />
+            <DLV A="0074" B="148" C="DET-1" />
+            <DLV A="0077" B="299" C="DET-1" />
+        </TIM>
+        <TLG A="TLG00003" C="1" />
+        <TIM A="2016-06-16T10:16:45" B="2016-06-16T10:22:51" D="4">
+            <DLV A="e114" B="7447" C="DET-1" />
+            <DLV A="e11c" B="276226251" C="DET-1" />
+            <DLV A="e11d" B="10000" C="DET-1" />
+            <DLV A="0074" B="269" C="DET-1" />
+            <DLV A="0077" B="481" C="DET-1" />
+        </TIM>
+    </TSK>
+</ISO11783_TaskData>
