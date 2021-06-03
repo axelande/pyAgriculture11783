@@ -6,6 +6,9 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from pyAgriculture.sorting_utils import find_by_key
+from cython_agri import read_static_binary_data
+import os
+from pathlib import Path
 
 
 class PyAgriculture:
@@ -14,21 +17,29 @@ class PyAgriculture:
         self.tasks = []
         self.task_dicts = {}
         self.task_infos = []
-        self.schemas = {'ASP': json.load(open('../schemas/ASP.schema')),
-                        'DAN': json.load(open('../schemas/DAN.schema')),
-                        'DET': json.load(open('../schemas/DET.schema')),
-                        'DLT': json.load(open('../schemas/DLT.schema')),
-                        'DOR': json.load(open('../schemas/DOR.schema')),
-                        'DVC': json.load(open('../schemas/DVC.schema')),
-                        'DVP': json.load(open('../schemas/DVP.schema')),
-                        'PTN': json.load(open('../schemas/PTN.schema')),
-                        'TIM': json.load(open('../schemas/TIM.schema')),
-                        'TLG': json.load(open('../schemas/TLG.schema')),
-                        'TSK': json.load(open('../schemas/TSK.schema')),
+        self.read_with_cyton = True
+        this_folder = os.path.dirname(os.path.abspath(__file__))
+        self.schemas = {'ASP': json.load(open(this_folder + '/../schemas/ASP.schema')),
+                        'DAN': json.load(open(this_folder + '/../schemas/DAN.schema')),
+                        'DET': json.load(open(this_folder + '/../schemas/DET.schema')),
+                        'DLT': json.load(open(this_folder + '/../schemas/DLT.schema')),
+                        'DOR': json.load(open(this_folder + '/../schemas/DOR.schema')),
+                        'DVC': json.load(open(this_folder + '/../schemas/DVC.schema')),
+                        'DVP': json.load(open(this_folder + '/../schemas/DVP.schema')),
+                        'PTN': json.load(open(this_folder + '/../schemas/PTN.schema')),
+                        'TIM': json.load(open(this_folder + '/../schemas/TIM.schema')),
+                        'TLG': json.load(open(this_folder + '/../schemas/TLG.schema')),
+                        'TSK': json.load(open(this_folder + '/../schemas/TSK.schema')),
                         }
         self.start_date = datetime(year=1980, month=1, day=1)
         self.dt = None
         self.static_bytes = 0
+        self.convert_field = False
+        self._check_path_is_ok()
+
+    def _check_path_is_ok(self):
+        if not Path(self.path + 'TASKDATA.xml').is_file():
+            raise FileNotFoundError('The specified path does not contain a taskdata.xml file')
 
     @staticmethod
     def _add_from_root_or_child(r_or_c, task_data_dict: dict) -> list:
@@ -44,11 +55,19 @@ class PyAgriculture:
             task_data_dict[r_or_c.tag][r_or_c.attrib["A"]]['parent_tag'] = r_or_c.tag
             try:
                 task_data_dict[r_or_c.tag][r_or_c.attrib["A"]]['parent_id'] = r_or_c.attrib["A"]
-            except:
+            except Exception as e1:
                 task_data_dict[r_or_c.tag][r_or_c.attrib["A"]]['parent_id'] = None
         else:
             for attribute in r_or_c.attrib.keys():
-                pass
+                if attribute in task_data_dict[r_or_c.tag][r_or_c.attrib["A"]]:
+                    if isinstance(task_data_dict[r_or_c.tag][r_or_c.attrib["A"]][attribute], list):
+                        if r_or_c.attrib[attribute] not in task_data_dict[r_or_c.tag][r_or_c.attrib["A"]][attribute]:
+                            task_data_dict[r_or_c.tag][r_or_c.attrib["A"]][attribute].append(r_or_c.attrib[attribute])
+                    else:
+                        if task_data_dict[r_or_c.tag][r_or_c.attrib["A"]][attribute] != r_or_c.attrib[attribute]:
+                            task_data_dict[r_or_c.tag][r_or_c.attrib["A"]][attribute] = [task_data_dict[r_or_c.tag][r_or_c.attrib["A"]][attribute], r_or_c.attrib[attribute]]
+                else:
+                    task_data_dict[r_or_c.tag][r_or_c.attrib["A"]][attribute] = r_or_c.attrib[attribute]
             a=1
         return [task_data_dict, found_children]
 
@@ -64,24 +83,30 @@ class PyAgriculture:
                     self.add_children(task_data_dict, sub_c)
         return task_data_dict
 
-    def gather_data(self, most_important='Dry yield'):
-        tree = ET.parse(self.path + 'TASKDATA.xml')
-        root = tree.getroot()
+    def gather_data(self, most_important='dry yield', continue_on_fail=True):
+        """This function will use the specified path to the taskdata.xml to build a tree of all information in the
+         taskdata file and all the files tlg xml and bin files."""
+
         task_data_dict = {}
-        self.task_dicts = self.add_children(task_data_dict, root)
+        tree = ET.parse(self.path + 'TASKDATA.xml')
+        self.task_dicts = self.add_children(task_data_dict, tree.getroot())
         if 'TLG' in self.task_dicts.keys():
-            for tsk in tqdm(reversed(list(self.task_dicts['TLG'].keys()))):
-                if len(self.tasks) > 2:
-                    break
-                tree = ET.parse(self.path + self.task_dicts['TLG'][tsk]['A'] + '.xml')
-                tlg_root = tree.getroot()
-                tlg_dict = self.add_children({}, tlg_root)
-                self.get_ptn_data(tlg_dict)
-                tlg_dict = self.combine_task_tlg_data(tlg_dict, task_data_dict)
-                columns = self.get_tlg_columns(tlg_dict)
-                self.task_infos.append(tlg_dict)
-                self.tasks.append(self.read_binaryfile(self.path + self.task_dicts['TLG'][tsk]['A'], tlg_dict, columns,
-                                                       most_important))
+            for tsk in tqdm(list(self.task_dicts['TLG'].keys())):
+                try:
+                    branch = ET.parse(self.path + self.task_dicts['TLG'][tsk]['A'] + '.xml')
+                    tlg_root = branch.getroot()
+                    tlg_dict = self.add_children({}, tlg_root)
+                    self.get_ptn_data(tlg_dict)
+                    tlg_dict = self.combine_task_tlg_data(tlg_dict, task_data_dict)
+                    self.task_infos.append(tlg_dict)
+                    columns = self.get_tlg_columns(tlg_dict)
+                    self.tasks.append(self.read_binaryfile(self.path + self.task_dicts['TLG'][tsk]['A'], tlg_dict, columns,
+                                                           most_important))
+                except FileNotFoundError:
+                    if not continue_on_fail:
+                        raise FileNotFoundError(f"The TLG file {self.task_dicts['TLG'][tsk]['A']}.xml was not found.")
+        if self.convert_field:
+            self.convert_yield_field()
 
     def get_ptn_data(self, tlg_dict: dict) -> None:
         if 'PTN' not in tlg_dict.keys():
@@ -131,49 +156,42 @@ class PyAgriculture:
 
         for key in tlg_dict['DLV'].keys():
             if 'Name' in tlg_dict['DLV'][key].keys():
-                columns.append(tlg_dict['DLV'][key]['Name'])
+                columns.append(tlg_dict['DLV'][key]['Name'].lower())
         return columns
 
     @staticmethod
-    def combine_task_tlg_data(tlg_dict, task_data_dict):
+    def _add_device(task_data_dict, dlv_key, tlg_dict, pd_id):
+        found, dpd_key = find_by_key(task_data_dict['DPD'], 'B', pd_id)
+        if found:
+            dpd = task_data_dict['DPD'][dpd_key]
+            tlg_dict['DLV'][dlv_key]['Name'] = dpd['E']
+            if 'F' in dpd.keys():
+                dvp = task_data_dict['DVP'][dpd['F']]
+                tlg_dict['DLV'][dlv_key]['DVP'] = {'nr_decimals': dvp['D'], 'scale': dvp['C'],
+                                                   'offset': dvp['B']}
+                if 'E' in dvp.keys():
+                    tlg_dict['DLV'][dlv_key]['DVP']['unit'] = dvp['E']
+
+    def combine_task_tlg_data(self, tlg_dict, task_data_dict):
         for dlv_key in tlg_dict['DLV'].keys():
             # Obtains the DeviceElementIdRef
             de_id = tlg_dict['DLV'][dlv_key]['C']
             # Obtains the ProcessDataDDI
             pd_id = tlg_dict['DLV'][dlv_key]['A']
             # Adding the DeviceElement to the tlg dict
-            tlg_dict['DLV'][dlv_key]['DET'] = task_data_dict['DET'][de_id]
-            if tlg_dict['DLV'][dlv_key]['DET']['C'] == '1':
-                # Adding a device to the tlg dict
-                found, dpd_key = find_by_key(task_data_dict['DPD'], 'B', pd_id)
-                if found:
-                    dpd = task_data_dict['DPD'][dpd_key]
-                    tlg_dict['DLV'][dlv_key]['Name'] = dpd['E']
-                    if 'F' in dpd.keys():
-                        dvp = task_data_dict['DVP'][dpd['F']]
-                        tlg_dict['DLV'][dlv_key]['DVP'] = {'nr_decimals': dvp['D'], 'scale': dvp['C'],
-                                                           'offset': dvp['B']}
-                        if 'E' in dvp.keys():
-                            tlg_dict['DLV'][dlv_key]['DVP']['unit'] = dvp['E']
-                #tlg_dict['DLV'][dlv_key]['DLT'] = task_data_dict['DLT'][pd_id]
-                pass
-            elif tlg_dict['DLV'][dlv_key]['DET']['C'] == '2':
-                # Adding DeviceProcessData to the tlg dict
-                found, dpd_key = find_by_key(task_data_dict['DPD'], 'B', pd_id)
-                if found:
-                    dpd = task_data_dict['DPD'][dpd_key]
-                    tlg_dict['DLV'][dlv_key]['Name'] = dpd['E']
-                    if 'F' in dpd.keys():
-                        dvp = task_data_dict['DVP'][dpd['F']]
-                        tlg_dict['DLV'][dlv_key]['DVP'] = {'nr_decimals': dvp['D'], 'scale': dvp['C'],
-                                                           'offset': dvp['B']}
-                        if 'E' in dvp.keys():
-                            tlg_dict['DLV'][dlv_key]['DVP']['unit'] = dvp['E']
+            if not isinstance(de_id, list):
+                tlg_dict['DLV'][dlv_key]['DET'] = task_data_dict['DET'][de_id]
+                tlg_dict['DLV'][dlv_key]['DET']['list'] = False
             else:
-                print(tlg_dict['DLV'][dlv_key]['DET']['C'])
+                tlg_dict['DLV'][dlv_key]['DET'] = {}
+                tlg_dict['DLV'][dlv_key]['DET']['list'] = True
+                for i, de_i in enumerate(de_id):
+                    tlg_dict['DLV'][dlv_key]['DET'][i] = {}
+                    tlg_dict['DLV'][dlv_key]['DET'][i] = task_data_dict['DET'][de_i]
+            self._add_device(task_data_dict, dlv_key, tlg_dict, pd_id)
         return tlg_dict
 
-    def _read_static_binary_data(self, data_row: list, read_point: int, binary_data: object, tlg_dict: dict) -> list:
+    def _read_static_binary_python(self, data_row: list, read_point: int, binary_data: object, tlg_dict: dict) -> list:
         nr_d = 3
         np_data = np.frombuffer(binary_data, self.dt, count=1, offset=read_point)
         millis_from_midnight = int(np_data[0][0])
@@ -195,7 +213,7 @@ class PyAgriculture:
         nr_dlvs = np_data[0][nr_d + 1]
         return [data_row, nr_dlvs, nr_d - 1]
 
-    def read_binaryfile(self, file_path: str, tlg_dict: dict, df_columns: list, most_important: str):
+    def read_binaryfile(self, file_path: str, tlg_dict: dict, df_columns: list, most_important: str) -> pd.DataFrame:
         with open(file_path + '.bin', 'rb') as fin:
             binary_data = fin.read()
         read_point = 0
@@ -204,22 +222,28 @@ class PyAgriculture:
         dlvs = list(tlg_dict['DLV'])
         data_row = [None] * nr_columns
         unit_row = [None] * nr_columns
+
         while read_point < len(binary_data):
-            data_row, nr_dlvs, nr_static = self._read_static_binary_data(data_row, read_point, binary_data, tlg_dict)
+            if self.read_with_cyton:
+                data_row, nr_dlvs, nr_static = read_static_binary_data(data_row, read_point, binary_data, tlg_dict,
+                                                                       self.dt, self.start_date)
+            else:
+                data_row, nr_dlvs, nr_static = self._read_static_binary_python(data_row, read_point, binary_data,
+                                                                              tlg_dict)
             read_point += self.static_bytes
             for nr, dlv in np.frombuffer(binary_data, [('DLVn', np.dtype('uint8')),
                                                        ('PDV', np.dtype('int32'))],
                                          count=nr_dlvs, offset=read_point):
                 if (nr + nr_static + 1) >= len(data_row):
                     # fail?
-                    nr = len(data_row) - 1 -nr_static
+                    nr = len(data_row) - 1 - nr_static
                 if nr >= len(dlvs):
                     dlv_key = dlvs[-1]
                 else:
                     dlv_key = dlvs[nr]
                 if 'DVP' in tlg_dict['DLV'][dlv_key].keys():
                     dvp = tlg_dict['DLV'][dlv_key]['DVP']
-                    #dlv = (dlv + float(dvp['offset'])) * float(dvp['scale']) * pow(10, -int(dvp['nr_decimals']))
+                    dlv = (dlv + float(dvp['offset'])) * float(dvp['scale']) * pow(10, -int(dvp['nr_decimals']))
                     if unit_row[nr] is None:
                         if 'unit' in dvp.keys():
                             unit_row[nr] = dvp['unit']
@@ -229,7 +253,6 @@ class PyAgriculture:
                 to_tlg_df.append(data_row)
             if data_row[df_columns.index(most_important)] is not None:
                 to_tlg_df.append(data_row)
-                # data_row[df_columns.index(most_important)] = None
                 data_row = [None] * nr_columns
         if len(to_tlg_df) == 0:
             return 0
@@ -237,12 +260,35 @@ class PyAgriculture:
             if idx > (nr_static - 1):
                 try:
                     df_columns[idx] = col_name + f" ({tlg_dict['DLV'][dlvs[idx - nr_static]]['DVP']['unit']})"
+                    if col_name == most_important and 'lb/ac' in tlg_dict['DLV'][dlvs[idx - nr_static]]['DVP']['unit']:
+                        self.convert_field = True
                 except IndexError and KeyError:
                     pass
         return pd.DataFrame(to_tlg_df, columns=df_columns)
 
+    def convert_yield_field(self):
+        """Converts the yield output from lb/ac to kg/ha"""
+        column = 'dry yield (lb/ac)'
+        for j, task in enumerate(self.tasks):
+            if isinstance(task, pd.DataFrame):
+                self.tasks[j][column] = task[column] * 1.12085
+                self.tasks[j].rename({'dry yield (lb/ac)': 'dry yield (kg/ha)'}, axis='columns', inplace=True)
+
 
 if __name__ == '__main__':
-    py_agri = PyAgriculture('../TASKDATA/')
-    py_agri.gather_data()
+    #py_agri = PyAgriculture('../Potatoes/TaskData/')
+    py_agri = PyAgriculture('../Combiner/TaskData/')
+    import time
+    t0 = time.time()
+    py_agri.gather_data(continue_on_fail=False)
+    print('reading data took : ' + str(round(time.time()-t0)))
+    print('Got all data')
+    from pandas import ExcelWriter
+
+    writer = ExcelWriter('PythonExport.xlsx')
+    for i in range(len(py_agri.tasks)):
+        if isinstance(py_agri.tasks[i], pd.DataFrame):
+            py_agri.tasks[i].to_excel(writer, 'Sheet' + str(i))
+    writer.save()
+    print(py_agri.tasks)
     print(len(py_agri.tasks))
