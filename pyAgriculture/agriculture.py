@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from pyAgriculture.sorting_utils import find_by_key
-from cython_agri import read_static_binary_data
 import os
 from pathlib import Path
 
@@ -17,7 +16,7 @@ class PyAgriculture:
         self.tasks = []
         self.task_dicts = {}
         self.task_infos = []
-        self.read_with_cyton = True
+        self.read_with_cython = False
         this_folder = os.path.dirname(os.path.abspath(__file__))
         self.schemas = {'ASP': json.load(open(this_folder + '/../schemas/ASP.schema')),
                         'DAN': json.load(open(this_folder + '/../schemas/DAN.schema')),
@@ -38,7 +37,10 @@ class PyAgriculture:
         self._check_path_is_ok()
 
     def _check_path_is_ok(self):
-        if not Path(self.path + 'TASKDATA.xml').is_file():
+        if self.path[-1] not in ['/', '\\']:
+            self.path += '/'
+        if not Path(self.path + 'TaskData.xml').is_file():
+            print(self.path + 'TaskData.xml')
             raise FileNotFoundError('The specified path does not contain a taskdata.xml file')
 
     @staticmethod
@@ -58,14 +60,20 @@ class PyAgriculture:
             except Exception as e1:
                 task_data_dict[r_or_c.tag][r_or_c.attrib["A"]]['parent_id'] = None
         else:
+            if r_or_c.attrib["A"] in task_data_dict[r_or_c.tag]:
+                r_or_c.attrib["A"] = r_or_c.attrib["A"] + str(len(task_data_dict[r_or_c.tag]))
+                task_data_dict[r_or_c.tag][r_or_c.attrib["A"]] = r_or_c.attrib
+                task_data_dict[r_or_c.tag][r_or_c.attrib["A"]]['parent_tag'] = r_or_c.tag
             for attribute in r_or_c.attrib.keys():
                 if attribute in task_data_dict[r_or_c.tag][r_or_c.attrib["A"]]:
-                    if isinstance(task_data_dict[r_or_c.tag][r_or_c.attrib["A"]][attribute], list):
-                        if r_or_c.attrib[attribute] not in task_data_dict[r_or_c.tag][r_or_c.attrib["A"]][attribute]:
-                            task_data_dict[r_or_c.tag][r_or_c.attrib["A"]][attribute].append(r_or_c.attrib[attribute])
-                    else:
-                        if task_data_dict[r_or_c.tag][r_or_c.attrib["A"]][attribute] != r_or_c.attrib[attribute]:
-                            task_data_dict[r_or_c.tag][r_or_c.attrib["A"]][attribute] = [task_data_dict[r_or_c.tag][r_or_c.attrib["A"]][attribute], r_or_c.attrib[attribute]]
+                    pass
+                    #task_data_dict[r_or_c.tag][r_or_c.attrib["A"] + str(len(task_data_dict[r_or_c.tag]))] = r_or_c.attrib[attribute]
+                    #if isinstance(task_data_dict[r_or_c.tag][r_or_c.attrib["A"]][attribute], list):
+                    #    if r_or_c.attrib[attribute] not in task_data_dict[r_or_c.tag][r_or_c.attrib["A"]][attribute]:
+                    #        task_data_dict[r_or_c.tag][r_or_c.attrib["A"]][attribute].append(r_or_c.attrib[attribute])
+                    #else:
+                    #    if task_data_dict[r_or_c.tag][r_or_c.attrib["A"]][attribute] != r_or_c.attrib[attribute]:
+                    #        task_data_dict[r_or_c.tag][r_or_c.attrib["A"]][attribute] = [task_data_dict[r_or_c.tag][r_or_c.attrib["A"]][attribute], r_or_c.attrib[attribute]]
                 else:
                     task_data_dict[r_or_c.tag][r_or_c.attrib["A"]][attribute] = r_or_c.attrib[attribute]
             a=1
@@ -83,43 +91,85 @@ class PyAgriculture:
                     self.add_children(task_data_dict, sub_c)
         return task_data_dict
 
-    def gather_data(self, most_important='dry yield', continue_on_fail=True):
+    def gather_task_names(self, continue_on_fail=True) -> list:
         """This function will use the specified path to the taskdata.xml to build a tree of all information in the
          taskdata file and all the files tlg xml and bin files."""
 
         task_data_dict = {}
+        task_names = []
         tree = ET.parse(self.path + 'TASKDATA.xml')
         self.task_dicts = self.add_children(task_data_dict, tree.getroot())
         if 'TLG' in self.task_dicts.keys():
-            for tsk in tqdm(list(self.task_dicts['TLG'].keys())):
+            for i, tsk in enumerate(list(self.task_dicts['TLG'].keys())):
                 try:
                     branch = ET.parse(self.path + self.task_dicts['TLG'][tsk]['A'] + '.xml')
-                    tlg_root = branch.getroot()
-                    tlg_dict = self.add_children({}, tlg_root)
-                    self.get_ptn_data(tlg_dict)
-                    tlg_dict = self.combine_task_tlg_data(tlg_dict, task_data_dict)
-                    self.task_infos.append(tlg_dict)
-                    columns = self.get_tlg_columns(tlg_dict)
-                    self.tasks.append(self.read_binaryfile(self.path + self.task_dicts['TLG'][tsk]['A'], tlg_dict, columns,
-                                                           most_important))
                 except FileNotFoundError:
                     if not continue_on_fail:
                         raise FileNotFoundError(f"The TLG file {self.task_dicts['TLG'][tsk]['A']}.xml was not found.")
+                    else:
+                        continue
+                tlg_dict = self.add_children({}, branch.getroot())
+                self.set_ptn_data(tlg_dict)
+                tlg_dict = self.combine_task_tlg_data(tlg_dict, task_data_dict)
+                self.task_infos.append(tlg_dict)
+                try:
+                    task_name = task_data_dict['TSK'][list(task_data_dict['TSK'].keys())[i]]['B']
+                except IndexError:
+                    task_name = 'unkown'
+                task_names.append(task_name)
+        return task_names
+
+    def gather_data(self, most_important='dry yield', continue_on_fail=True, only_tasks=[]):
+        """This function will use the specified path to the taskdata.xml to build a tree of all information in the
+         taskdata file and all the files tlg xml and bin files."""
+        reset_columns = False
+        task_data_dict = {}
+        tree = ET.parse(self.path + 'TASKDATA.xml')
+        self.task_dicts = self.add_children(task_data_dict, tree.getroot())
+        if 'TLG' in self.task_dicts.keys():
+            for i, tsk in enumerate(tqdm(list(self.task_dicts['TLG'].keys()))):
+                try:
+                    branch = ET.parse(self.path + self.task_dicts['TLG'][tsk]['A'] + '.xml')
+                except FileNotFoundError:
+                    if not continue_on_fail:
+                        raise FileNotFoundError(f"The TLG file {self.task_dicts['TLG'][tsk]['A']}.xml was not found.")
+                    else:
+                        continue
+                #if i < 50 or i > 108:
+                #    continue
+                tlg_dict = self.add_children({}, branch.getroot())
+                self.set_ptn_data(tlg_dict)
+                tlg_dict = self.combine_task_tlg_data(tlg_dict, task_data_dict)
+                self.task_infos.append(tlg_dict)
+                columns = self.get_tlg_columns(tlg_dict)
+                try:
+                    task_name = task_data_dict['TSK'][list(task_data_dict['TSK'].keys())[i]]['B']
+                except IndexError:
+                    task_name = 'unkown'
+                if len(only_tasks) > 0:
+                    if not task_name in only_tasks:
+                        continue
+                if most_important not in columns:
+                    continue
+                self.tasks.append(self.read_binaryfile(self.path + self.task_dicts['TLG'][tsk]['A'], tlg_dict, columns,
+                                                       most_important, task_name, reset_columns))
+
         if self.convert_field:
             self.convert_yield_field()
 
-    def get_ptn_data(self, tlg_dict: dict) -> None:
+    def set_ptn_data(self, tlg_dict: dict) -> None:
         if 'PTN' not in tlg_dict.keys():
             raise BaseException('Point data does not exist in all TLG files..')
         dtypes = [('millisFromMidnight', np.dtype('uint32')),
                   ('days', np.dtype('uint16')),
                   ('pos north', np.dtype('int32')),
                   ('pos east', np.dtype('int32'))]
-        static_bytes = 16
+        static_bytes = 14
         if 'C' in tlg_dict['PTN'][''].keys():
             dtypes.append(('pos up', np.dtype('int32')))
             static_bytes += 4
         dtypes.append(('pos status', np.dtype('uint8')))
+        static_bytes += 1
         if 'E' in tlg_dict['PTN'][''].keys():
             dtypes.append(('pdop', np.dtype('uint16')))
             static_bytes += 2
@@ -136,11 +186,12 @@ class PyAgriculture:
             dtypes.append(('GPS date', np.dtype('uint16')))
             static_bytes += 2
         dtypes.append(('nr dlv', np.dtype('uint8')))
+        static_bytes += 1
         self.dt = np.dtype(dtypes)
         self.static_bytes = static_bytes
 
     @staticmethod
-    def get_tlg_columns(tlg_dict):
+    def get_tlg_columns(tlg_dict) -> list:
         columns = ['Time_stamp', 'latitude', 'longitude']
         if 'C' in tlg_dict['PTN'][''].keys():
             columns.append('pos_up')
@@ -211,60 +262,97 @@ class PyAgriculture:
             data_row[nr_d] = actual_time.strftime('%Y-%m-%dT%H:%M:%S')
             nr_d += 2
         nr_dlvs = np_data[0][nr_d + 1]
-        return [data_row, nr_dlvs, nr_d - 1]
+        return [data_row, nr_dlvs, nr_d]
 
-    def read_binaryfile(self, file_path: str, tlg_dict: dict, df_columns: list, most_important: str) -> pd.DataFrame:
+    def read_binaryfile(self, file_path: str, tlg_dict: dict, df_columns: list, most_important: str,
+                        task_name: str, reset_columns: bool) -> pd.DataFrame:
         with open(file_path + '.bin', 'rb') as fin:
             binary_data = fin.read()
         read_point = 0
-        nr_columns = len(df_columns)
+        nr_columns = len(df_columns) + 30
         to_tlg_df = []
+        #dlvs = []
+        #for key in tlg_dict['DLV'].keys():
+        #    if 'D' in tlg_dict['DLV'][key]:
+        #        for i in range(len(tlg_dict['DLV'][key]['D'])):
+        #            dlvs.append(key)
+        #    else:
+        #        dlvs.append(key)
         dlvs = list(tlg_dict['DLV'])
         data_row = [None] * nr_columns
         unit_row = [None] * nr_columns
 
         while read_point < len(binary_data):
-            if self.read_with_cyton:
+            # The first part of each "row" contains of static data, a timestamp and some satellite data.
+            if self.read_with_cython:
+                from pyAgriculture.cython_agri import read_static_binary_data
                 data_row, nr_dlvs, nr_static = read_static_binary_data(data_row, read_point, binary_data, tlg_dict,
                                                                        self.dt, self.start_date)
             else:
                 data_row, nr_dlvs, nr_static = self._read_static_binary_python(data_row, read_point, binary_data,
-                                                                              tlg_dict)
+                                                                               tlg_dict)
             read_point += self.static_bytes
-            for nr, dlv in np.frombuffer(binary_data, [('DLVn', np.dtype('uint8')),
-                                                       ('PDV', np.dtype('int32'))],
-                                         count=nr_dlvs, offset=read_point):
-                if (nr + nr_static + 1) >= len(data_row):
-                    # fail?
-                    nr = len(data_row) - 1 - nr_static
-                if nr >= len(dlvs):
-                    dlv_key = dlvs[-1]
-                else:
-                    dlv_key = dlvs[nr]
-                if 'DVP' in tlg_dict['DLV'][dlv_key].keys():
-                    dvp = tlg_dict['DLV'][dlv_key]['DVP']
-                    dlv = (dlv + float(dvp['offset'])) * float(dvp['scale']) * pow(10, -int(dvp['nr_decimals']))
-                    if unit_row[nr] is None:
-                        if 'unit' in dvp.keys():
-                            unit_row[nr] = dvp['unit']
-                data_row[nr + nr_static] = dlv
-                read_point += 5
+            read_point, data_row, unit_row = self.read_dlvs(binary_data, read_point, nr_dlvs, nr_static, dlvs, tlg_dict,
+                                                            unit_row, data_row, df_columns)
+
+
             if most_important is None:
-                to_tlg_df.append(data_row)
-            if data_row[df_columns.index(most_important)] is not None:
-                to_tlg_df.append(data_row)
-                data_row = [None] * nr_columns
+                to_tlg_df.append(data_row[:])
+                continue
+            to_tlg_df.append(data_row[:])
+            #if data_row[df_columns.index(most_important)] is not None:
+            #    to_tlg_df.append(data_row[:])
+            #    if reset_columns:
+            #        data_row = [None] * nr_columns
+            #    else:
+            #        data_row[df_columns.index(most_important)] = None
         if len(to_tlg_df) == 0:
             return 0
         for idx, col_name in enumerate(df_columns):
-            if idx > (nr_static - 1):
+            if idx > nr_static:
                 try:
-                    df_columns[idx] = col_name + f" ({tlg_dict['DLV'][dlvs[idx - nr_static]]['DVP']['unit']})"
-                    if col_name == most_important and 'lb/ac' in tlg_dict['DLV'][dlvs[idx - nr_static]]['DVP']['unit']:
+                    df_columns[idx] = col_name + f" ({tlg_dict['DLV'][dlvs[idx - nr_static +1]]['DVP']['unit']})"
+                    if col_name == most_important and 'lb/ac' in tlg_dict['DLV'][dlvs[idx - nr_static+1]]['DVP']['unit']:
                         self.convert_field = True
                 except IndexError and KeyError:
                     pass
-        return pd.DataFrame(to_tlg_df, columns=df_columns)
+        df_columns.extend([str(i) for i in range(30)])
+        df = pd.DataFrame(to_tlg_df, columns=df_columns)
+        df.attrs['task_name'] = task_name
+        df.attrs['columns'] = df_columns
+        return df
+
+    @staticmethod
+    def read_dlvs(binary_data, read_point: int, nr_dlvs: int, nr_static: int, dlvs:list,
+                  tlg_dict: dict, unit_row: list, data_row: list, colimuns: list) -> list:
+        for nr, dlv in np.frombuffer(binary_data, [('DLVn', np.dtype('uint8')),
+                                                   ('PDV', np.dtype('int32'))],
+                                     count=nr_dlvs, offset=read_point):
+            #if (nr + nr_static + 1) >= len(data_row):
+            #    # fail?
+            #    nr = len(data_row) - 1 - nr_static
+            read_point += 5
+            if nr >= (len(dlvs) - 1):
+                dlv_key = dlvs[-1]
+            elif nr == 0:
+                continue
+            else:
+                dlv_key = dlvs[nr - 1]  # Instead of zero indexed
+            print(nr)
+            if 'DVP' in tlg_dict['DLV'][dlv_key].keys():
+                dvp = tlg_dict['DLV'][dlv_key]['DVP']
+                dlv = (dlv + float(dvp['offset'])) * float(dvp['scale']) * pow(10, -int(dvp['nr_decimals']))
+                if unit_row[nr] is None:
+                    if 'unit' in dvp.keys():
+                        unit_row[nr - 1] = dvp['unit']
+            if nr < 4:
+                nr = 0
+
+            try:
+                data_row[nr + nr_static - 1] = dlv
+            except:
+                pass
+        return [read_point, data_row, unit_row]
 
     def convert_yield_field(self):
         """Converts the yield output from lb/ac to kg/ha"""
