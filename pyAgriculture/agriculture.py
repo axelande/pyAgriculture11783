@@ -5,7 +5,9 @@ import xml.etree.ElementTree as ET
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from pyAgriculture.sorting_utils import find_by_key
+from sorting_utils import find_by_key
+from cython_agri import read_static_binary_data, cython_read_dlvs
+import line_profiler
 import os
 from pathlib import Path
 
@@ -16,7 +18,7 @@ class PyAgriculture:
         self.tasks = []
         self.task_dicts = {}
         self.task_infos = []
-        self.read_with_cython = False
+        self.read_with_cython = True
         this_folder = os.path.dirname(os.path.abspath(__file__))
         self.schemas = {'ASP': json.load(open(this_folder + '/../schemas/ASP.schema')),
                         'DAN': json.load(open(this_folder + '/../schemas/DAN.schema')),
@@ -98,14 +100,9 @@ class PyAgriculture:
         if dlv_e.attrib["B"] == "":
             self.dlvs.append(dlv_e.attrib.copy())
             earlier_added = 0
-            for key in self.dlv_columns:
-                if self.dlv_columns[key]['numbers'] > 1:
-                    earlier_added += self.dlv_columns[key]['numbers']
-            if dlv_e.attrib["A"] not in self.dlv_columns.keys():
-                self.dlv_columns[dlv_e.attrib["A"]] = {'numbers': 1, 'earlier_added': earlier_added}
-            else:
-                self.dlv_columns[dlv_e.attrib["A"]]['numbers'] += 1
-            print(dlv_e)
+            if dlv_e.attrib["A"] not in self.dlv_idx.keys():
+                self.dlv_idx[dlv_e.attrib["A"]] = len(list(self.dlv_idx))
+
 
     def gather_task_names(self, continue_on_fail=True) -> list:
         """This function will use the specified path to the taskdata.xml to build a tree of all information in the
@@ -154,7 +151,7 @@ class PyAgriculture:
                 #if i < 50 or i > 108:
                 #    continue
                 self.dlvs = []
-                self.dlv_columns = {}
+                self.dlv_idx = {}
                 tlg_dict = self.add_children({}, branch.getroot())
                 self.set_ptn_data(tlg_dict)
                 tlg_dict = self.combine_task_tlg_data(tlg_dict, task_data_dict)
@@ -169,8 +166,10 @@ class PyAgriculture:
                         continue
                 if most_important not in columns:
                     continue
-                self.tasks.append(self.read_binaryfile(self.path + self.task_dicts['TLG'][tsk]['A'], tlg_dict, columns,
-                                                       most_important, task_name, reset_columns))
+                task = self.read_binaryfile(self.path + self.task_dicts['TLG'][tsk]['A'], tlg_dict, columns,
+                                                       most_important, task_name, reset_columns)
+                if task is not None:
+                    self.tasks.append(task)
 
         if self.convert_field:
             self.convert_yield_field()
@@ -287,16 +286,8 @@ class PyAgriculture:
         with open(file_path + '.bin', 'rb') as fin:
             binary_data = fin.read()
         read_point = 0
-        nr_columns = len(df_columns) + 30
+        nr_columns = len(df_columns)
         to_tlg_df = []
-        #dlvs = []
-        #for key in tlg_dict['DLV'].keys():
-        #    if 'D' in tlg_dict['DLV'][key]:
-        #        for i in range(len(tlg_dict['DLV'][key]['D'])):
-        #            dlvs.append(key)
-        #    else:
-        #        dlvs.append(key)
-        dlvs = list(tlg_dict['DLV'])
         data_row = [None] * nr_columns
         unit_row = [None] * nr_columns
         dpd_ids = {}
@@ -306,21 +297,27 @@ class PyAgriculture:
         while read_point < len(binary_data):
             # The first part of each "row" contains of static data, a timestamp and some satellite data.
             if self.read_with_cython:
-                from pyAgriculture.cython_agri import read_static_binary_data
+                #read_static = line_profiler.LineProfiler(read_static_binary_data)
+                #read_dlv = line_profiler.LineProfiler(cython_read_dlvs)
+                from cython_agri import read_static_binary_data
+                #read_static_binary_data = profile(read_static_binary_data)
                 data_row, nr_dlvs, nr_static = read_static_binary_data(data_row, read_point, binary_data, tlg_dict,
                                                                        self.dt, self.start_date)
+                read_point += self.static_bytes
+                read_point, data_row, unit_row = cython_read_dlvs(binary_data, read_point, nr_dlvs, nr_static, dpd_ids,
+                                                            self.task_dicts, unit_row, data_row, self.dlvs,
+                                                            self.dlv_idx)
             else:
                 data_row, nr_dlvs, nr_static = self._read_static_binary_python(data_row, read_point, binary_data,
                                                                                tlg_dict)
-            read_point += self.static_bytes
-            read_point, data_row, unit_row = self.read_dlvs(binary_data, read_point, nr_dlvs, nr_static, dpd_ids,
+                read_point += self.static_bytes
+                read_point, data_row, unit_row = self.read_dlvs(binary_data, read_point, nr_dlvs, nr_static, dpd_ids,
                                                             self.task_dicts, unit_row, data_row, self.dlvs,
-                                                            self.dlv_columns, df_columns)
+                                                            self.dlv_idx)
 
             if most_important is None:
                 to_tlg_df.append(data_row[:])
                 continue
-            #to_tlg_df.append(data_row[:])
             if data_row[df_columns.index(most_important)] is not None:
                 to_tlg_df.append(data_row[:])
                 if reset_columns:
@@ -328,16 +325,17 @@ class PyAgriculture:
                 else:
                     data_row[df_columns.index(most_important)] = None
         if len(to_tlg_df) == 0:
-            return 0
+            return None
         for idx, col_name in enumerate(df_columns):
             if idx > nr_static:
                 try:
                     df_columns[idx] = col_name + f" ({unit_row[idx-nr_static]})"
+                    if unit_row[idx-nr_static] is None:
+                        continue
                     if col_name == most_important and 'lb/ac' in unit_row[idx-nr_static]:
                         self.convert_field = True
                 except IndexError and KeyError:
                     pass
-        df_columns.extend([str(i) for i in range(30)])
         df = pd.DataFrame(to_tlg_df, columns=df_columns)
         df.attrs['task_name'] = task_name
         df.attrs['columns'] = df_columns
@@ -345,16 +343,13 @@ class PyAgriculture:
 
     @staticmethod
     def read_dlvs(binary_data, read_point: int, nr_dlvs: int, nr_static: int, dpd_ids: dict,
-                  tlg_dict: dict, unit_row: list, data_row: list, dlvs: list, dlv_columns:dict, colimuns: list) -> list:
+                  tlg_dict: dict, unit_row: list, data_row: list, dlvs: list, dlv_idx: dict) -> list:
         for nr, dlv in np.frombuffer(binary_data, [('DLVn', np.dtype('uint8')),
                                                    ('PDV', np.dtype('int32'))],
                                      count=nr_dlvs, offset=read_point):
-            #if (nr + nr_static + 1) >= len(data_row):
-            #    # fail?
-            #    nr = len(data_row) - 1 - nr_static
             read_point += 5
             dpd_key = dlvs[nr]['A']
-            ae = dlv_columns[dpd_key]['earlier_added']
+            idx = dlv_idx[dpd_key]
             if dpd_key in dpd_ids.keys():
                 dpd = dpd_ids[dpd_key]
                 dvp_key = dpd.get('F')
@@ -363,13 +358,13 @@ class PyAgriculture:
             if dvp_key is None or dvp_key not in tlg_dict['DVP'].keys():
                 continue
             dvp = tlg_dict['DVP'][dvp_key]
-            decimals = int(dvp['D'])
-            dlv = round((dlv + float(dvp['B'])) * float(dvp['C']), decimals)
-            if unit_row[nr - ae] is None:
+            decimals = float(10**int(dvp['D']))
+            dlv = int((dlv + float(dvp['B'])) * float(dvp['C']) * decimals + 0.5) / decimals
+            if unit_row[idx] is None:
                 if 'E' in dvp.keys():
-                    unit_row[nr - ae] = dvp['E']
+                    unit_row[idx] = dvp['E']
             try:
-                data_row[nr + nr_static - ae] = dlv
+                data_row[idx + nr_static] = dlv
             except:
                 pass
         return [read_point, data_row, unit_row]
