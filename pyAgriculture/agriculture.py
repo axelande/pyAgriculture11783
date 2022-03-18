@@ -16,20 +16,10 @@ class PyAgriculture:
         self.tasks = []
         self.task_dicts = {}
         self.task_infos = []
+        self.dlvs = []
+        self.dlv_idx = {}
         self.read_with_cython = True
-        this_folder = os.path.dirname(os.path.abspath(__file__))
-        self.schemas = {'ASP': json.load(open(this_folder + '/../schemas/ASP.schema')),
-                        'DAN': json.load(open(this_folder + '/../schemas/DAN.schema')),
-                        'DET': json.load(open(this_folder + '/../schemas/DET.schema')),
-                        'DLT': json.load(open(this_folder + '/../schemas/DLT.schema')),
-                        'DOR': json.load(open(this_folder + '/../schemas/DOR.schema')),
-                        'DVC': json.load(open(this_folder + '/../schemas/DVC.schema')),
-                        'DVP': json.load(open(this_folder + '/../schemas/DVP.schema')),
-                        'PTN': json.load(open(this_folder + '/../schemas/PTN.schema')),
-                        'TIM': json.load(open(this_folder + '/../schemas/TIM.schema')),
-                        'TLG': json.load(open(this_folder + '/../schemas/TLG.schema')),
-                        'TSK': json.load(open(this_folder + '/../schemas/TSK.schema')),
-                        }
+        self.rename_columns_with_units = False
         self.start_date = datetime(year=1980, month=1, day=1)
         self.dt = None
         self.static_bytes = 0
@@ -97,7 +87,6 @@ class PyAgriculture:
     def add_dlv(self, dlv_e: ET.Element):
         if dlv_e.attrib["B"] == "":
             self.dlvs.append(dlv_e.attrib.copy())
-            earlier_added = 0
             if dlv_e.attrib["A"] not in self.dlv_idx.keys():
                 self.dlv_idx[dlv_e.attrib["A"]] = len(list(self.dlv_idx))
 
@@ -138,7 +127,7 @@ class PyAgriculture:
         tree = ET.parse(self.path + 'TASKDATA.xml')
         self.task_dicts = self.add_children(task_data_dict, tree.getroot())
         if 'TLG' in self.task_dicts.keys():
-            for i, tsk in enumerate(tqdm(list(self.task_dicts['TLG'].keys()))):
+            for i, tsk in enumerate(list(self.task_dicts['TLG'].keys())):
                 try:
                     branch = ET.parse(self.path + self.task_dicts['TLG'][tsk]['A'] + '.xml')
                 except FileNotFoundError:
@@ -207,7 +196,7 @@ class PyAgriculture:
 
     @staticmethod
     def get_tlg_columns(tlg_dict) -> list:
-        columns = ['Time_stamp', 'latitude', 'longitude']
+        columns = ['time_stamp', 'latitude', 'longitude']
         if 'C' in tlg_dict['PTN'][''].keys():
             columns.append('pos_up')
         columns.append('position_status')
@@ -324,19 +313,22 @@ class PyAgriculture:
                     data_row[df_columns.index(most_important)] = None
         if len(to_tlg_df) == 0:
             return None
-        for idx, col_name in enumerate(df_columns):
-            if idx > nr_static:
-                try:
-                    df_columns[idx] = col_name + f" ({unit_row[idx-nr_static]})"
-                    if unit_row[idx-nr_static] is None:
-                        continue
-                    if col_name == most_important and 'lb/ac' in unit_row[idx-nr_static]:
-                        self.convert_field = True
-                except IndexError and KeyError:
-                    pass
+        if self.rename_columns_with_units:
+            for idx, col_name in enumerate(df_columns):
+                if idx >= nr_static:
+                    try:
+                        df_columns[idx] = col_name + f" ({unit_row[idx-nr_static+1]})"
+                        if unit_row[idx-nr_static-1] is None:
+                            continue
+                    except IndexError and KeyError:
+                        pass
+        #df_columns.extend([str(i) for i in range(15)])
         df = pd.DataFrame(to_tlg_df, columns=df_columns)
+        for i in range(nr_static - 1):
+            unit_row.insert(i, '')
         df.attrs['task_name'] = task_name
         df.attrs['columns'] = df_columns
+        df.attrs['unit_row'] = unit_row
         return df
 
     @staticmethod
@@ -362,7 +354,7 @@ class PyAgriculture:
                 if 'E' in dvp.keys():
                     unit_row[idx] = dvp['E']
             try:
-                data_row[idx + nr_static] = dlv
+                data_row[idx + nr_static - 1] = dlv
             except:
                 pass
         return [read_point, data_row, unit_row]
