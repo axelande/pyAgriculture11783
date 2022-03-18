@@ -424,6 +424,13 @@ class GenerateTaskData(QMainWindow):
         path = QFileDialog.getSaveFileName(self, 'Save TaskData', filter='xml (*.xml)')[0]
         schemas_layout = self.q_layout
         et_parents = ET.Element('ISO11783_TaskData')
+        et_parents.set("VersionMajor", "2")
+        et_parents.set("VersionMinor", "0")
+        et_parents.set("ManagementSoftwareManufacturer", "pyAgriculture11783")
+        et_parents.set("ManagementSoftwareVersion", str(__version__))
+        et_parents.set("TaskControllerManufacturer", "pyAgriculture11783" )
+        et_parents.set("TaskControllerVersion", str(__version__))
+        et_parents.set("DataTransferOrigin", "1")
         for row in range(schemas_layout.rowCount()):
             sub_layout = schemas_layout.itemAtPosition(row, 0)
             if sub_layout is None:
