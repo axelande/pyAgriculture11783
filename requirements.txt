@@ -9,7 +9,8 @@ coverage
 Cython
 et-xmlfile
 geopandas
-fiona
+Fiona
+geopy
 gdal
 iniconfig
 jdcal
@@ -22,13 +23,13 @@ pluggy
 py
 pyparsing
 pyproj
-PySide2
+PySide6
 pytest
 pytest-qt
 python-dateutil
 pytz
 Shapely
-shiboken2
+shiboken6
 six
 toml
 tqdm

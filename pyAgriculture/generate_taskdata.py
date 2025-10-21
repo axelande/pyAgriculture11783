@@ -8,11 +8,11 @@ import xml.etree.ElementTree as ET
 import geopandas as gpd
 import geopy
 import geopy.distance
-from PySide2.QtWidgets import (QLabel, QMainWindow, QPushButton, QVBoxLayout, QWidget, QApplication, QComboBox,
+from PySide6.QtWidgets import (QLabel, QMainWindow, QPushButton, QVBoxLayout, QWidget, QApplication, QComboBox,
                                QLineEdit, QHBoxLayout, QCheckBox, QFrame, QMenu, QScrollArea, QFileDialog, QGridLayout,
                                QDoubleSpinBox, QSpinBox, QMessageBox)
-from PySide2.QtCore import Qt
-from PySide2 import QtGui
+from PySide6.QtCore import Qt
+from PySide6 import QtGui
 
 from pyAgriculture.create_recpie import CreateRecipe
 from pyAgriculture.meta_data_widgets import MetaData

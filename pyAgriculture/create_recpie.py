@@ -3,11 +3,11 @@ import re
 import sys
 import xml.etree.ElementTree as ET
 
-from PySide2.QtWidgets import (QMainWindow, QWidget, QLabel, QGridLayout, QTableWidget, QTableWidgetItem, QSpacerItem,
+from PySide6.QtWidgets import (QMainWindow, QWidget, QLabel, QGridLayout, QTableWidget, QTableWidgetItem, QSpacerItem,
                                QFileDialog, QPushButton, QComboBox, QSizePolicy, QAbstractItemView, QApplication,
                                QMessageBox)
-from PySide2.QtCore import Qt
-from PySide2.QtGui import QFont
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QFont
 
 
 class CheckableComboBox(QComboBox):

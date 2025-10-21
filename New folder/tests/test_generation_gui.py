@@ -1,4 +1,4 @@
-from PySide6 import QtCore
+from PySide2 import QtCore
 import pytest
 from pyAgriculture.generate_taskdata import GenerateTaskData
 from pyAgriculture.create_recpie import CreateRecipe
