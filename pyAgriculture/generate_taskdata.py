@@ -179,7 +179,7 @@ class GenerateTaskData(QMainWindow):
         else:
             height = 50
         key_frame.setMinimumHeight(height)
-        parent_layout.addWidget(key_frame, parent_layout.rowCount(), 0, rowSpan=3, columnSpan=1)
+        parent_layout.addWidget(key_frame, parent_layout.rowCount(), 0, 3, 1)
         self.frame_stack[key_frame] = {'parent_frame': parent_frame, 'height': height, 'key': key}
         key_frame.setMinimumHeight(height)
         key_frame.setMaximumHeight(height)
@@ -489,4 +489,4 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     gui = GenerateTaskData()
     gui.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
